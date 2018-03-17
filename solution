@@ -1,0 +1,544 @@
+#include"stdafx.h"
+#include"stdio.h"
+#include<vector>
+#include<list>
+#include<map>
+#include<set>
+#include"stdlib.h"
+
+#include <iostream>
+using namespace std;
+#define maxN 36
+//represents simple Node and its connections
+class Node
+{
+public:	
+	int  Degree;	
+	int  Index;
+	bool pointsNode[maxN];
+	int  hasStation;
+	bool hasNextNodeStation;
+	bool br_hasNextNodeStation;
+	bool Marker;
+	//default constructor
+	Node()
+	{	
+		for(int i=0;i<maxN;++i) pointsNode[i]=false;
+		Degree=0;
+		Index=-1;
+		hasStation=-1;		
+		hasNextNodeStation=false;
+		br_hasNextNodeStation=false;
+		Marker=false;
+	}
+	int findFirstAdjacentNodeIndex(int startIndex=0)
+	{
+		for(int i=startIndex;i<maxN;++i) 
+			if(pointsNode[i]) 
+				return i;
+        return -1;
+	}
+	//operator < overloading. In order to be used in the list- sort operation.
+	bool  operator<(const Node &N)
+	{
+		if(Degree>N.Degree) return true;
+		else return false;
+	}
+	//checks if the node is pure
+	bool isPure()
+	{
+		if(hasStation!=1&&hasNextNodeStation==false&&br_hasNextNodeStation!=1) return true;
+		return false;
+
+	}
+};
+//Represents the whole graph and its nodes
+class Graph
+{
+public:
+	int n;//number of Nodes
+	int m;//number of Edges
+	int markedNodes;
+	int numStations;
+	bool connected;//checks
+	bool exit;//determines if the graph has 0 nodes
+    list<Node> Nl;	
+	//copy constructor
+	Graph(const Graph& G)
+	{
+		n=G.n;
+		m=G.m;
+		markedNodes=G.markedNodes;
+		numStations=G.numStations;
+		Nl=G.Nl;
+		exit=false;		
+	}
+	//Default constructor
+	Graph()
+	{
+		//INPUT
+		int p,q,countEdges=0;
+		numStations=0;
+		cin>>n>>m;
+		if(n==0){ exit=true;return;	}//getting the exit input 0 0
+		exit=false;
+		Node* N=new Node[n];		
+		for(int i=0;i<n;++i) N[i].Index=i;	//Index every Node
+		for(int i=0;i<m;++i)
+		{	
+			cin>>p>>q;
+			if(p!=q&&N[p-1].pointsNode[q-1]==false&&N[q-1].pointsNode[p-1]==false)
+			{
+				N[p-1].pointsNode[q-1]=true;//not safe
+			  ++N[p-1].Degree;
+			    N[q-1].pointsNode[p-1]=true;
+			  ++N[q-1].Degree;
+			  ++countEdges;
+			}
+		}
+		m=countEdges;
+		//Creates List Nodes for more efficient sorting, insertion and other...
+		list<Node> temp(N,N+n);
+		delete[] N;
+		temp.sort();//sorts the list for more efficiency
+		Nl.merge(temp);	
+		markedNodes=0;
+		
+	}
+	//Generate Random Graph given only number of nodes
+	Graph(int numNodes)
+	{
+		int p,q,countEdges=0;
+		numStations=0;
+		markedNodes=0;
+		
+		//cin>>n>>m;
+		
+		n=numNodes;	
+
+		if(n==0) //construct empty graph
+		{ 
+			m=0;
+			numStations=0;			
+			return;	
+		}
+		m=rand()%n*(n-1);
+		exit=false;//getting the exit input 0 0
+		Node* N=new Node[n];		
+		for(int i=0;i<n;++i) N[i].Index=i;	//Index every Node
+		for(int i=0;i<m;++i)
+		{	
+			//cin>>p>>q;
+			p=rand()%n+1;//generates random node with index between 1 and n			
+			q=rand()%n+1;//generates random node with index between1 1 and n-p-1
+			
+			if(p!=q&&N[p-1].pointsNode[q-1]==false&&N[q-1].pointsNode[p-1]==false)
+			{
+				N[p-1].pointsNode[q-1]=true;//not safe
+			  ++N[p-1].Degree;
+			    N[q-1].pointsNode[p-1]=true;
+			  ++N[q-1].Degree;
+			  ++countEdges;
+			}
+		}
+		m=countEdges;
+		//Creates List Nodes for more efficient sorting, insertion and other...
+		list<Node> temp(N,N+n);
+		delete[] N;
+		temp.sort();//sorts the list for more efficiency
+		Nl.merge(temp);	
+		markedNodes=0;
+
+	}
+	
+	//gets the Node with specified index	
+	Node& N_(int index)
+	{
+		for(list<Node>::iterator iter=Nl.begin();iter!=Nl.end();++iter)
+		{
+				  if(iter->Index==index)	
+					  return *iter;
+		}
+		//return *Nl.rbegin();
+	}
+	//insert node
+	void insert(const Node& N)
+	{
+		Nl.push_back(N);
+		n++;
+		if(N.Marker==true) markedNodes++;
+		
+	}
+	//remove  edge connecting Nodes i and j
+	void removeEdge(int i,int j)
+	{	
+		if(i==j) 	return;//when the edge points itself
+		Node& I=N_(i);
+		if(!I.pointsNode[j])
+			return;//detects if the Edge [j] exists. if not returns
+		  I.pointsNode[j]=false;
+		--I.Degree;
+		Node& J=N_(j);		
+		
+		  J.pointsNode[i]=false;
+		--J.Degree;
+		--m;//reduces the number of edges in the graph
+
+	}
+	//Erasing a Node and its edges from the graph
+	void removeNode(int index)
+	{
+		if(Nl.empty())return; 
+		for(list<Node>::iterator iter=Nl.begin();iter!=Nl.end();++iter) 
+			                     removeEdge(iter->Index,index);//disconnects Node's edges
+
+		for(list<Node>::iterator iter=Nl.begin();iter!=Nl.end();++iter)//removes the node
+		{
+			if(iter->Index==index)
+			{
+				Nl.erase(iter);//Erases a Node from the Graph
+				--n;           //Decreases the number of Nodes
+				return;
+			}
+		}
+	}
+	////Erasing a Node.overloaded function with list<iter> as argument
+	void removeNode(list<Node>::iterator& iter)
+	{
+		//disconnects all edges
+		for(int i=0;i<maxN;++i) 
+		{
+			if(iter->pointsNode[i]) 
+			{
+				iter->pointsNode[i]=false;
+				Node& N=N_(i);
+				N.pointsNode[iter->Index]=false;
+				--N.Degree;
+				--m;
+			}
+		}
+		//erases the node from the list
+		Nl.erase(iter);
+		--n;
+	}
+	//Removes all nodes degree 0. degree1 and dergee2 which are connected to two nodes degree2
+	int reduce_0_1_degree()
+	{
+		for(list<Node>::iterator iter=Nl.begin();iter!=Nl.end();)
+		{
+			if(iter->Degree==0)
+			{ 
+				if(!iter->hasStation||!iter->hasNextNodeStation) 
+					++numStations;
+				removeNode(iter);			
+				if(Nl.empty()) return 0;// returns 1 when the list is empty. Graph is completely reduced. 
+				iter=Nl.begin();
+				continue;
+			}
+			if(iter->Degree==1)
+			{	
+				if(iter->hasNextNodeStation==true)
+				{ 
+					removeNode(iter);
+					if(Nl.empty()) return 0;
+				    iter=Nl.begin();
+					continue;
+				}
+				if(iter->hasNextNodeStation==false)
+				{
+					Node& baseNode=N_(iter->findFirstAdjacentNodeIndex());
+					setStation(baseNode);
+					removeNode(baseNode.Index);//removes the base node with station. It also dissconnects all adjacent nodes.			
+					removeNode(iter);          // removes the leaf
+					if(Nl.empty()) return 0;
+					iter=Nl.begin();
+					continue;
+				}
+			}			
+			//removes all nodes which have Next Node Stations(NNS) and are surrounded only of nodes with NNS or with stations
+			if(iter->hasNextNodeStation&&all_adjacent_haveStations(*iter))
+			{
+				removeNode(iter);			
+				if(Nl.empty())return 0;
+				iter=Nl.begin();
+				continue;
+			}
+			++iter;
+		}
+		// Graph is reduced !!!
+		return 1;
+	}
+	
+	
+//Sets Station to a Node and assigns NextStation to nodes which are adjacent to it
+	void setStation(Node& currNode)
+	{	
+		currNode.hasStation=1;
+		numStations++;
+		for(int i=0;i<maxN;++i)
+		{
+			if(currNode.pointsNode[i]) 	
+				N_(i).hasNextNodeStation=true;
+		}
+	}
+//Sets Station 
+//used only in brute force algorithm
+	void br_setStation(Node& currNode)
+	{	
+		currNode.hasStation=1;
+		numStations++;
+		for(int i=0;i<maxN;++i)
+		{
+			if(currNode.pointsNode[i]) 	
+				N_(i).br_hasNextNodeStation=true;
+		}
+	}
+	
+	//checks if all edges point to nodes which has next node station
+	bool all_adjacent_haveStations(const Node& N)
+	{
+		for(int i=0;i<maxN;++i)
+		{
+			if(N.pointsNode[i]==true)  
+				if(N_(i).hasNextNodeStation==false) return false;
+		}
+		return true;
+	}
+	
+	//returns the number of pure Nodes. Pure node has no station and all adjacent nodes have no stations.
+	int pureNodes()
+	{
+		int count=0;
+		if(Nl.empty()) return 0;
+		for(list<Node>::iterator iter=Nl.begin();iter!=Nl.end();++iter)
+		{
+			if(iter->isPure()) 	++count;
+		}
+		return count;
+	}	
+	//checks 
+	bool isComplete()
+	{
+		 for(list<Node>::iterator iter=Nl.begin();iter!=Nl.end();++iter)
+			{
+				if(iter->isPure()) 	return false;
+			}
+		 return true;
+	}
+	
+	//clear all stations ans hasNextNode Stations
+	void br_clearStations()
+	{
+		for(list<Node>::iterator iter=Nl.begin();iter!=Nl.end();++iter)
+			{
+				iter->hasStation=-1;
+				iter->br_hasNextNodeStation=false;
+			}
+		numStations=0;
+	}
+	//Increments to the next combination of k numbers
+private:
+	bool incrC_n_k(int a[],int len)
+	{	
+		for(int i=1;i<len;++i)
+		{
+			if(a[i]==n-(len-1)+i)
+			{			
+				a[i-1]++;
+				for(int j=i;j<len;++j) 	a[j]=a[j-1]+1;			
+				return true;
+			}
+		}
+		if(a[len-1]==n)	return false;
+		a[len-1]++;
+		return true;
+	}
+	//recursively marks a connected area of the Graph
+	void markNodes(Node& N)
+	{		
+		N.Marker=true;
+		markedNodes++;
+		for(int i=0;i<maxN;++i)
+		{
+			if(N.pointsNode[i]) 
+			{
+				Node& M=N_(i);
+				if(M.Marker==false)	markNodes(M);
+			}
+		}
+		return;
+	}	
+public:	
+
+	//removes marked nodes from the Graph and inserts them into another Graph
+	void moveMarkedNodesTo(Graph& G)
+	{
+		for(list<Node>::iterator iter=Nl.begin();iter!=Nl.end();)
+		{
+			if(iter->Marker==true)
+			{
+				G.insert(*iter);
+				G.connected=true;
+				Nl.erase(iter);//!!!do not use remove node
+				if(Nl.empty()) return;
+				iter=Nl.begin();
+				continue;
+			}
+			++iter;//increment iter only in case no nodes have been removed
+		}
+
+	}
+	//returns a vector of all subgraphs contained in this Graph
+	vector<Graph> getSubGraphs()
+	{
+		vector<Graph> Gl;
+		Graph A(*this);//create copy of this graph 		
+
+		for(list<Node>::iterator iter=A.Nl.begin();iter!=A.Nl.end();)
+		{
+			A.markNodes(*iter);//marks a connected area of Nodes in the copy of the main Graph			
+			Graph B(0);// create temporary empty graph
+			A.moveMarkedNodesTo(B);
+			if(A.Nl.empty())
+			{
+				Gl.push_back(B);
+				return Gl;
+			}
+			Gl.push_back(B);
+			//at this point only unmarked nodes are left.move the iterator to the new begining
+			iter=A.Nl.begin();		
+			
+		}	
+		return Gl;
+	}
+	//Returns true if k number of stations suffices the conditions of min stations per graph
+	bool BruteForceMinNumSt(int k)
+	{
+		br_clearStations();
+		int* s=new int[k];
+		//initializing the array with first k numbers
+		for(int i=0;i<k;++i) 	s[i]=i;	
+			
+		while(s[0]<=n-k+1)
+		{
+			int pointer=0;
+			int i=0;
+			for(list<Node>::iterator iter=Nl.begin();iter!=Nl.end();++iter)
+			{
+				if(i>=k) 
+					break;
+				if(s[i]==pointer)
+				{
+					br_setStation(*iter);
+					i++;
+				}
+		   		pointer++;
+			}
+			//check if there are any pure nodes
+			if(isComplete()) 		return true;
+
+			br_clearStations();
+
+			if(!incrC_n_k(s,k)) return false;		
+		}
+		return false;
+	}
+	
+	
+//prints the content of the graph
+	void print()
+	{
+		cout<<n<<" "<<m<<endl;
+		for(list<Node>::iterator iter1=Nl.begin();iter1!=Nl.end();++iter1)
+		{
+			for(int i=0;i<maxN;++i)
+			{
+				if(iter1->pointsNode[i]&&iter1->Index>i) cout<<iter1->Index+1<<" "<<i+1<<endl;
+			}			
+		}
+
+	}
+};
+
+
+
+//reduces 0 degree,1 degree,and then use brute force to find min number of st
+int minStAlgo(Graph& A)
+{
+//OBVIOUS cases elimination. 
+	     //when the graph has only 1,2 or 3 edges and they are connected.number of min stations is 1
+	    if(A.connected==true&&A.n<4) 	return 1;		
+//ANALYTIC REDUCTION
+		//eliminate nodes 0 and 1 degree
+	    A.reduce_0_1_degree();
+		//save the reduced graph A and use it after the greedy algorithm have 
+		//determined some min num of stations
+        Graph D(A);
+		int st=0;
+		int index=0;
+//GREEDY ALGORITHM REDUCTION
+		//while A has nodes
+		while(A.n>0)
+		{
+			for(list<Node>::iterator iter=A.Nl.begin();iter!=A.Nl.end();++iter)
+			{				
+				Graph B(A);
+				B.setStation(B.N_(iter->Index));
+				B.removeNode(iter->Index);                
+				B.reduce_0_1_degree();							 
+				int temp=(A.pureNodes()-B.pureNodes())/(B.numStations-A.numStations);
+				if(temp>=st) 
+				{
+					st=temp;
+					index=iter->Index;
+				}
+			}
+			A.setStation(A.N_(index));
+			A.removeNode(index);
+			A.reduce_0_1_degree();			
+			st=0;
+			index=0;
+		}	
+				
+		int oldNumStation=D.numStations;
+		int minGreedyNumOfStations=A.numStations-oldNumStation;			
+//BRUTE FORCE REDUCTION
+		if(minGreedyNumOfStations>1) 
+		{
+			//the true number of stations would be equal or less than 
+		    //the min number of st found by the greedy algorithm
+			for(int i=minGreedyNumOfStations-1;i>0;--i)
+			{
+				if(D.BruteForceMinNumSt(i)==false)
+				{
+					A.numStations=i+1+oldNumStation;
+					break;
+				}
+			}			
+		}
+		return A.numStations;
+
+}
+//Breaks the Graph in all its disconnected components and calls the algorithm for each of them
+int minStAlgoGroup(Graph& A)
+{
+	vector<Graph> res=A.getSubGraphs();
+	int sum=0;
+	for(int i=0;i<res.size();++i)	sum+=minStAlgo(res[i]);
+	return sum;
+}
+//MOI PREBORIXME MECHKATA :))) MNOGO SE NAGURMIAX. KAKVI GI VURSHISH TI?
+int main()
+{
+	vector<int> out;
+	int count=1;
+	while(true)
+	{
+		Graph A;
+		if(A.exit) 	break;
+		out.push_back(minStAlgoGroup(A));
+
+	}
+	for(int i=0;i<(int)out.size();++i) cout<<out[i]<<endl; 
+	return 0;
+}
